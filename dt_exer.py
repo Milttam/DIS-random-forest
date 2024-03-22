@@ -1,7 +1,32 @@
+class Node:
+    """
+    Node Class to represent a node in the decision tree.
+    """
+
+    def __init__(self, split_index=None, split_value=None, left=None, right=None, label=None):
+        self.split_index = split_index
+        self.split_value = split_value
+        self.left = left
+        self.right = right
+        self.label = label
+
+
 class DecisionTreeClassifier:
-    def __init__(self, max_depth=None):
+    def __init__(self, max_depth=None, min_samples_split=2, min_samples_leaf=1):
+        """
+        Hyperparameters:
+            max_depth (int): The maximum depth of the tree.
+            min_samples_split (int): The minimum number of samples required to split an internal node.
+            min_samples_leaf (int): The minimum number of samples required to be at a leaf node.
+
+        Attributes:
+            tree (dict): The decision tree represented as a recursive nested dictionary.
+            max_depth (int): The maximum depth of the tree.
+        """
         self.tree = None
         self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_samples_leaf = min_samples_leaf
 
     def fit(self, X, y):
         """
@@ -28,9 +53,12 @@ class DecisionTreeClassifier:
         dict: The decision tree represented as a nested dictionary.
         """
         # Base case: if all labels are the same or max_depth is reached, return a leaf node with that label
-        if len(set(y)) == 1 or (self.max_depth is not None and depth == self.max_depth):
+        if (self.min_samples_leaf <= len(y) < self.min_samples_split) \
+                or len(set(y)) == 1 \
+                or (self.max_depth is not None and depth == self.max_depth):
+
             majority_label = max(set(y), key=y.count)
-            return {'label': majority_label}
+            return Node(label=majority_label)
 
         # Find the best split point
         best_split_index, best_split_value = self._find_best_split(X, y)
@@ -44,10 +72,7 @@ class DecisionTreeClassifier:
         right_subtree = self._build_tree(right_X, right_y, depth + 1)
 
         # Create a node representing the best split
-        return {'split_index': best_split_index,
-                'split_value': best_split_value,
-                'left': left_subtree,
-                'right': right_subtree}
+        return Node(best_split_index, best_split_value, left_subtree, right_subtree)
 
     def _find_best_split(self, X, y):
         """
@@ -172,33 +197,62 @@ class DecisionTreeClassifier:
         Returns:
         int: Predicted label for the sample.
         """
-        if 'label' in tree:
-            return tree['label']
+        if tree.label is not None:
+            return tree.label
 
-        if sample[tree['split_index']] <= tree['split_value']:
-            return self._predict_sample(sample, tree['left'])
+        if sample[tree.split_index] <= tree.split_value:
+            return self._predict_sample(sample, tree.left)
         else:
-            return self._predict_sample(sample, tree['right'])
+            return self._predict_sample(sample, tree.right)
+
+    def visualize_tree(self, node, depth=0, indent="|--"):
+        """
+        Visualize the decision tree recursively.
+
+        Parameters:
+        tree (Node): The root node of the decision tree.
+        depth (int): Current depth of the tree (used for indentation).
+        indent (str): String used for indentation.
+
+        Returns:
+        str: String representation of the decision tree.
+        """
+        tree_str = ""
+
+        # Base case: if the node is a leaf node, return the label
+        if node.label is not None:
+            tree_str += f"{indent * (depth)}Class: {node.label}\n"
+        else:
+            # If not a leaf node, print the split condition
+            tree_str += f"{indent * depth}if feature[{node.split_index}] <= {node.split_value}:\n"
+            tree_str += self.visualize_tree(node.left, depth + 1, indent)
+            tree_str += f"{indent * depth}else:\n"
+            tree_str += self.visualize_tree(node.right, depth + 1, indent)
+
+        return tree_str
 
 
 # Initialize a DecisionTreeClassifier
-clf = DecisionTreeClassifier()
+# clf = DecisionTreeClassifier()
 
-# Example dataset (features matrix and labels)
-X_train = [[2.0, 3.0],
-           [5.0, 4.0],
-           [9.0, 6.0],
-           [4.0, 7.0],
-           [8.0, 1.0]]
+# # Example dataset (features matrix and labels)
+# X_train = [[2.0, 3.0],
+#            [5.0, 4.0],
+#            [9.0, 6.0],
+#            [4.0, 7.0],
+#            [8.0, 1.0]]
 
-y_train = [0, 1, 0, 1, 0]  # Example binary labels
+# y_train = [0, 1, 0, 1, 0]  # Example binary labels
 
-# Train the classifier
-clf.fit(X_train, y_train)
+# # Train the classifier
+# clf.fit(X_train, y_train)
 
-# Example predictions
-X_test = [[5.0, 4.0], [3.0, 2.0], [2.0, 3.0]]
+# # Example predictions
+# X_test = [[5.0, 4.0], [3.0, 2.0], [2.0, 3.0]]
 
-predictions = clf.predict(X_test)
+# predictions = clf.predict(X_test)
 
-print("Predictions:", predictions)
+# print("Predictions:", predictions)
+
+# # Visualize the decision tree
+# print(clf.visualize_tree(clf.tree))
